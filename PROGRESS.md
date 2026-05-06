@@ -4,10 +4,9 @@
 This project aims to compare the localized performance, resource overhead, and deployment characteristics of varying Container Orchestration Engines (K3s, Docker Swarm, Nomad) deployed on a strict 32GB RAM AMD Ryzen environment using localized VirtualBox VMs via Vagrant.
 
 ## Current Status Summary
-- **Overall Completion:** ~35%
-- **Current Active Engine:** K3s
-- **Current Blocker:** Microservice (DeathStarBench) Pods on K3s are experiencing `RunContainerError` crashes because the Kompose-translated deployment manifests have incorrect entrypoints (e.g., `./frontend: no such file or directory`). 
-- **Recent Pivot:** We officially dropped ML inference benchmarking (TFServing) due to VirtualBox failing to seamlessly passthrough AVX instructions, causing `Illegal instruction (core dumped)` crashes. We are prioritizing microservice P99 latency overhead via DeathStarBench.
+- **Overall Completion:** ~75%
+- **Current Active Engine:** Nomad
+- **Current Blocker:** None. Starting translation of DeathStarBench manifests to Nomad HCL.- **Recent Pivot:** We officially dropped ML inference benchmarking (TFServing) due to VirtualBox failing to seamlessly passthrough AVX instructions, causing `Illegal instruction (core dumped)` crashes. We are prioritizing microservice P99 latency overhead via DeathStarBench.
 
 ---
 
@@ -20,30 +19,30 @@ This project aims to compare the localized performance, resource overhead, and d
 - [x] Integrate `ansible` inside the `master` node to bypass Windows filesystem permission bugs.
 - [x] Adjust hardware profiles intelligently to prevent Windows Host OOM locks (Workers adjusted from 8GB to 6GB RAM).
 
-### Phase 2: K3s Deployment & Workload Validation (⏳ IN PROGRESS)
+### Phase 2: K3s Deployment & Workload Validation (✅ COMPLETED)
 - [x] Write generic Ansible playbook to deploy K3s control plane and join workers (`k3s-setup.yml`).
 - [x] Validate K3s cluster operational status (`kubectl get nodes`).
 - [x] Retrieve and apply DeathStarBench (Hotel Reservation) YAML manifests.
-- [x] **CURRENT:** Patch DeathStarBench manifests to fix `RunContainerError` entrypoint bugs.
-- [ ] Validate all microservice containers reach a `Running` state.
-- [ ] Expose frontend service locally for benchmark ingestion.
+- [x] Patch DeathStarBench manifests to fix `RunContainerError` absolute path bugs.
+- [x] Validate all microservice containers reach a `Running` state.
+- [x] Expose frontend service via NodePort for benchmark ingestion.
 
-### Phase 3: K3s Benchmarking (🔴 PENDING)
-- [ ] Set up HTTP load generator (e.g., `wrk`, `hey`, or DeathStarBench's built-in wrk2 framework).
-- [ ] Run localized load testing against the Hotel Reservation microservice on K3s.
+### Phase 3: K3s Benchmarking (⏳ IN PROGRESS)
+- [x] Set up HTTP load generator (`wrk`) on the master node.
+- [/] Run localized load testing against the Hotel Reservation microservice on K3s.
 - [ ] Capture cluster metrics (CPU overhead, RAM overhead, P99 Request Latency, Throughput).
 - [ ] Save K3s metrics for final comparison.
 - [ ] Teardown K3s cluster.
 
-### Phase 4: Docker Swarm Setup & Benchmarking (🔴 PENDING)
-- [ ] Finish writing Ansible playbook for Docker Swarm (`swarm-setup.yml`).
-- [ ] Bootstrap Swarm manager and join workers over the private subnet.
-- [ ] Adapt DeathStarBench manifests for `docker stack deploy` (using the base `docker-compose.yml`).
-- [ ] Run identical HTTP load generator tests.
-- [ ] Capture Swarm metrics (resource footprint, P99 latency, throughput).
-- [ ] Teardown Swarm cluster.
+### Phase 4: Docker Swarm Setup & Benchmarking (✅ COMPLETED)
+- [x] Finish writing Ansible playbook for Docker Swarm (`swarm-setup.yml`).
+- [x] Bootstrap Swarm manager and join workers over the private subnet.
+- [x] Adapt DeathStarBench manifests for Swarm (pruned and mongo downgrade).
+- [x] Run identical HTTP load generator tests.
+- [x] Capture Swarm metrics (resource footprint, P99 latency, throughput).
+- [x] Teardown Swarm cluster.
 
-### Phase 5: HashiCorp Nomad Setup & Benchmarking (🔴 PENDING)
+### Phase 5: HashiCorp Nomad Setup & Benchmarking (⏳ IN PROGRESS)
 - [ ] Write Ansible playbook for Nomad & Consul deployment (`nomad-setup.yml`).
 - [ ] Bootstrap Nomad server/client architecture.
 - [ ] Translate DeathStarBench requirements into Nomad `.hcl` job specifications.

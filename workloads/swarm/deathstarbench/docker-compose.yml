@@ -15,15 +15,13 @@ services:
         condition: any
 
   frontend:
-    configs:
-      - source: server_config
-        target: /config.json
+    # configs removed to use image defaults
     environment:
       - TLS
       - GC
       - JAEGER_SAMPLE_RATIO
       - LOG_LEVEL
-    build: .
+    # build removed
     image: deathstarbench/hotel-reservation:latest
     entrypoint: frontend
     ports:
@@ -37,182 +35,137 @@ services:
         condition: any
 
   profile:
-    configs:
-      - source: server_config
-        target: /config.json
+    # configs removed
     environment:
       - TLS
       - GC
       - JAEGER_SAMPLE_RATIO
       - LOG_LEVEL
-    build: .
+    # build removed
     image: deathstarbench/hotel-reservation:latest
     entrypoint: profile
     depends_on:
       - mongodb-profile
       - memcached-profile
       - consul
-    restart: always
+    # restart removed
     deploy:
       replicas: 1
       restart_policy:
         condition: any
 
   search:
-    configs:
-      - source: server_config
-        target: /config.json
+    # configs removed
     environment:
       - TLS
       - GC
       - JAEGER_SAMPLE_RATIO
       - LOG_LEVEL
-    build: .
+    # build removed
     image: deathstarbench/hotel-reservation:latest
     entrypoint: search
     depends_on:
       - consul
-    restart: always
+    # restart removed
     deploy:
       replicas: 1
       restart_policy:
         condition: any
 
   geo:
-    configs:
-      - source: server_config
-        target: /config.json
+    # configs removed
     environment:
       - TLS
       - GC
       - JAEGER_SAMPLE_RATIO
       - LOG_LEVEL
-    build: .
+    # build removed
     image: deathstarbench/hotel-reservation:latest
     entrypoint: geo
     depends_on:
       - mongodb-geo
       - consul
-    restart: always
+    # restart removed
     deploy:
       replicas: 1
       restart_policy:
         condition: any
 
   rate:
-    configs:
-      - source: server_config
-        target: /config.json
+    # configs removed
     environment:
       - TLS
       - GC
       - JAEGER_SAMPLE_RATIO
       - LOG_LEVEL
-    build: .
+    # build removed
     image: deathstarbench/hotel-reservation:latest
     entrypoint: rate
     depends_on:
       - mongodb-rate
       - memcached-rate
       - consul
-    restart: always
+    # restart removed
     deploy:
       replicas: 1
       restart_policy:
         condition: any
 
-  review:
-    environment:
-      - TLS
-      - GC
-      - JAEGER_SAMPLE_RATIO
-      - MEMC_TIMEOUT
-      - LOG_LEVEL
-    build: .
-    image: hotel_reserv_review_single_node
-    entrypoint: review
-    container_name: 'hotel_reserv_review'
-    depends_on:
-      - mongodb-review
-      - memcached-review
-      - consul
-    restart: always
-  
-  attractions:
-    environment:
-      - TLS
-      - GC
-      - JAEGER_SAMPLE_RATIO
-      - MEMC_TIMEOUT
-      - LOG_LEVEL
-    build: .
-    image: hotel_reserv_attractions_single_node
-    entrypoint: attractions
-    container_name: 'hotel_reserv_attractions'
-    depends_on:
-      - mongodb-attractions
-      - consul
-    restart: always
+
 
   recommendation:
-    configs:
-      - source: server_config
-        target: /config.json
+    # configs removed
     environment:
       - TLS
       - GC
       - JAEGER_SAMPLE_RATIO
       - LOG_LEVEL
-    build: .
+    # build removed
     image: deathstarbench/hotel-reservation:latest
     entrypoint: recommendation
     depends_on:
       - mongodb-recommendation
       - consul
-    restart: always
+    # restart removed
     deploy:
       replicas: 1
       restart_policy:
         condition: any
 
   user:
-    configs:
-      - source: server_config
-        target: /config.json
+    # configs removed
     environment:
       - TLS
       - GC
       - JAEGER_SAMPLE_RATIO
       - LOG_LEVEL
-    build: .
+    # build removed
     image: deathstarbench/hotel-reservation:latest
     entrypoint: user
     depends_on:
       - mongodb-user
       - consul
-    restart: always
+    # restart removed
     deploy:
       replicas: 1
       restart_policy:
         condition: any
 
   reservation:
-    configs:
-      - source: server_config
-        target: /config.json
+    # configs removed
     environment:
       - TLS
       - GC
       - JAEGER_SAMPLE_RATIO
       - LOG_LEVEL
-    build: .
+    # build removed
     image: deathstarbench/hotel-reservation:latest
     entrypoint: reservation
     depends_on:
       - mongodb-reservation
       - memcached-reserve
       - consul
-    restart: always
+    # restart removed
     deploy:
       replicas: 1
       restart_policy:
@@ -250,17 +203,6 @@ services:
       restart_policy:
         condition: any
 
-  memcached-review:
-    image: memcached
-    # hostname: user-memcached
-    container_name: 'hotel_reserv_review_mmc'
-    restart: always
-    environment:
-      - MEMCACHED_CACHE_SIZE=128
-      - MEMCACHED_THREADS=2
-    logging:
-      options:
-        max-size: 50m
 
   memcached-profile:
     image: memcached:latest
@@ -293,7 +235,7 @@ services:
         condition: any
 
   mongodb-geo:
-    image: mongo:5.0
+    image: mongo:4.4.6
     hostname: geo-db
     volumes:
       - geo:/data/db
@@ -304,7 +246,7 @@ services:
         condition: any
 
   mongodb-profile:
-    image: mongo:5.0
+    image: mongo:4.4.6
     hostname: profile-db
     volumes:
       - profile:/data/db
@@ -315,7 +257,7 @@ services:
         condition: any
 
   mongodb-rate:
-    image: mongo:5.0
+    image: mongo:4.4.6
     hostname: rate-db
     volumes:
       - rate:/data/db
@@ -325,30 +267,10 @@ services:
       restart_policy:
         condition: any
 
-  mongodb-review:
-    image: mongo:5.0
-    hostname: review-db
-    volumes:
-      - review:/data/db
-    restart: always
-    deploy:
-      replicas: 1
-      restart_policy:
-        condition: any
 
-  mongodb-attractions:
-    image: mongo:5.0
-    hostname: attractions-db
-    volumes:
-      - attractions:/data/db
-    restart: always
-    deploy:
-      replicas: 1
-      restart_policy:
-        condition: any
 
   mongodb-recommendation:
-    image: mongo:5.0
+    image: mongo:4.4.6
     hostname: recommendation-db
     volumes:
       - recommendation:/data/db
@@ -359,7 +281,7 @@ services:
         condition: any
 
   mongodb-reservation:
-    image: mongo:5.0
+    image: mongo:4.4.6
     hostname: reservation-db
     volumes:
       - reservation:/data/db
@@ -370,7 +292,7 @@ services:
         condition: any
 
   mongodb-user:
-    image: mongo:5.0
+    image: mongo:4.4.6
     hostname: user-db
     volumes:
       - user:/data/db
@@ -387,9 +309,5 @@ volumes:
   recommendation:
   reservation:
   user:
-  review:
-  attractions:
 
-configs:
-  server_config:
-    file: ./config.json
+# configs removed

@@ -19,14 +19,46 @@
   tasks:
     - name: Setup Server Config
       shell: |
-        cat <<EOF > /etc/nomad.d/server.hcl
+        mkdir -p /opt/nomad/data
+        chown -R nomad:nomad /opt/nomad
+        rm -f /etc/nomad.d/*.hcl
+        cat <<EOF > /etc/nomad.d/nomad.hcl
+        data_dir = "/opt/nomad/data"
+        bind_addr = "0.0.0.0"
+        advertise {
+          http = "{{ ansible_host }}"
+          rpc  = "{{ ansible_host }}"
+          serf = "{{ ansible_host }}"
+        }
         server {
           enabled = true
           bootstrap_expect = 1
         }
+        client {
+          enabled = false
+        }
         EOF
         systemctl enable nomad
         systemctl restart nomad
+
+    - name: Setup Consul Server
+      shell: |
+        mkdir -p /opt/consul
+        chown -R consul:consul /opt/consul
+        rm -f /etc/consul.d/*.hcl
+        cat <<EOF > /etc/consul.d/consul.hcl
+        data_dir = "/opt/consul"
+        bind_addr = "0.0.0.0"
+        client_addr = "0.0.0.0"
+        advertise_addr = "{{ ansible_host }}"
+        server = true
+        bootstrap_expect = 1
+        ui_config {
+          enabled = true
+        }
+        EOF
+        systemctl enable consul
+        systemctl restart consul
 
 - name: Configure Nomad Clients
   hosts: workers
@@ -34,12 +66,40 @@
   tasks:
     - name: Setup Client Config
       shell: |
-        cat <<EOF > /etc/nomad.d/client.hcl
+        mkdir -p /opt/nomad/data
+        chown -R nomad:nomad /opt/nomad
+        rm -f /etc/nomad.d/*.hcl
+        cat <<EOF > /etc/nomad.d/nomad.hcl
+        data_dir = "/opt/nomad/data"
+        bind_addr = "0.0.0.0"
+        advertise {
+          http = "{{ ansible_host }}"
+          rpc  = "{{ ansible_host }}"
+          serf = "{{ ansible_host }}"
+        }
+        server {
+          enabled = false
+        }
         client {
           enabled = true
-          servers = ["{{ hostvars['master']['ansible_host'] }}"]
+          servers = ["{{ hostvars['master']['ansible_host'] }}:4647"]
         }
         EOF
         systemctl enable nomad
         systemctl restart nomad
+
+    - name: Setup Consul Client
+      shell: |
+        mkdir -p /opt/consul
+        chown -R consul:consul /opt/consul
+        rm -f /etc/consul.d/*.hcl
+        cat <<EOF > /etc/consul.d/consul.hcl
+        data_dir = "/opt/consul"
+        bind_addr = "0.0.0.0"
+        client_addr = "0.0.0.0"
+        advertise_addr = "{{ ansible_host }}"
+        retry_join = ["{{ hostvars['master']['ansible_host'] }}"]
+        EOF
+        systemctl enable consul
+        systemctl restart consul
 
