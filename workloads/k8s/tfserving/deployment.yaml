@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tfserving-resnet
+  labels:
+    app: tfserving
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: tfserving
+  template:
+    metadata:
+      labels:
+        app: tfserving
+    spec:
+      containers:
+      - name: tfserving
+        image: tensorflow/serving:latest
+        ports:
+        - containerPort: 8500
+          name: grpc
+        - containerPort: 8501
+          name: rest
+        env:
+        - name: MODEL_NAME
+          value: "resnet"
+        - name: MODEL_BASE_PATH
+          value: "/models/resnet"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tfserving-service
+spec:
+  type: NodePort
+  ports:
+  - port: 8501
+    targetPort: 8501
+    nodePort: 30501
+    protocol: TCP
+    name: rest
+  selector:
+    app: tfserving

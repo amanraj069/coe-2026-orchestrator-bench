@@ -1,0 +1,45 @@
+---
+- name: Setup HashiCorp Nomad and Consul
+  hosts: cluster
+  become: yes
+  tasks:
+    - name: Install HashiCorp repo and dependencies
+      shell: |
+        apt-get update && apt-get install -y wget gpg coreutils
+        wget -qO- https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+        echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" > /etc/apt/sources.list.d/hashicorp.list
+        apt-get update
+        apt-get install -y nomad consul
+      args:
+        creates: /usr/bin/nomad
+
+- name: Configure Nomad Server
+  hosts: master
+  become: yes
+  tasks:
+    - name: Setup Server Config
+      shell: |
+        cat <<EOF > /etc/nomad.d/server.hcl
+        server {
+          enabled = true
+          bootstrap_expect = 1
+        }
+        EOF
+        systemctl enable nomad
+        systemctl restart nomad
+
+- name: Configure Nomad Clients
+  hosts: workers
+  become: yes
+  tasks:
+    - name: Setup Client Config
+      shell: |
+        cat <<EOF > /etc/nomad.d/client.hcl
+        client {
+          enabled = true
+          servers = ["{{ hostvars['master']['ansible_host'] }}"]
+        }
+        EOF
+        systemctl enable nomad
+        systemctl restart nomad
+

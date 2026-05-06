@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  tfserving-resnet:
+    image: bitnami/tensorflow-serving:latest
+    environment:
+      - MODEL_NAME=resnet
+      - MODEL_BASE_PATH=/models/resnet
+    ports:
+      - "30501:8501"
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2048M
+        reservations:
+          cpus: '0.5'
+          memory: 1024M
+      update_config:
+        parallelism: 1
+        delay: 10s

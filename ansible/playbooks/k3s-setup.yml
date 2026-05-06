@@ -1,0 +1,41 @@
+---
+- name: Setup K3s Cluster
+  hosts: cluster
+  become: yes
+  tasks:
+    - name: Download k3s installation script
+      get_url:
+        url: https://get.k3s.io
+        dest: /tmp/k3s.sh
+        mode: '0755'
+
+- name: Setup K3s Master
+  hosts: master
+  become: yes
+  tasks:
+    - name: Install K3s server
+      shell: /tmp/k3s.sh
+      environment:
+        INSTALL_K3S_EXEC: "server --node-ip {{ ansible_host }} --bind-address {{ ansible_host }}"
+      args:
+        creates: /usr/local/bin/k3s
+
+    - name: Get K3s node token
+      slurp:
+        src: /var/lib/rancher/k3s/server/node-token
+      register: node_token
+
+    - name: Save node token as fact
+      set_fact:
+        k3s_token: "{{ node_token['content'] | b64decode | trim }}"
+
+- name: Setup K3s Workers
+  hosts: workers
+  become: yes
+  tasks:
+    - name: Install K3s agent
+      shell: /tmp/k3s.sh
+      environment:
+        INSTALL_K3S_EXEC: "agent --server https://{{ groups['master'][0] }}:6443 --token {{ hostvars[groups['master'][0]]['k3s_token'] }} --node-ip {{ inventory_hostname }}"
+      args:
+        creates: /etc/systemd/system/k3s-agent.service

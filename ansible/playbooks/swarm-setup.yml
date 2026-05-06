@@ -1,0 +1,56 @@
+---
+- name: Setup Docker Environment
+  hosts: cluster
+  become: yes
+  tasks:
+    - name: Install required packages
+      apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: yes
+      loop:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - software-properties-common
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu jammy stable
+        state: present
+
+    - name: Install Docker
+      apt:
+        name: docker-ce
+        state: present
+        update_cache: yes
+
+- name: Setup Docker Swarm Master
+  hosts: master
+  become: yes
+  tasks:
+    - name: Init Swarm
+      shell: "docker swarm init --advertise-addr {{ ansible_host }}"
+      ignore_errors: yes
+
+    - name: Get worker join token
+      shell: docker swarm join-token -q worker
+      register: swarm_worker_token
+
+    - name: Save token as fact
+      set_fact:
+        worker_token: "{{ swarm_worker_token.stdout }}"
+
+- name: Setup Docker Swarm Workers
+  hosts: workers
+  become: yes
+  tasks:
+    - name: Join Swarm
+      shell: "docker swarm join --token {{ hostvars['master']['worker_token'] }} {{ hostvars['master']['ansible_host'] }}:2377"
+      ignore_errors: yes
+
