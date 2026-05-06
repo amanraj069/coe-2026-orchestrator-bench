@@ -3,6 +3,26 @@
   hosts: cluster
   become: yes
   tasks:
+    - name: Disable swap
+      shell: |
+        swapoff -a
+        sed -i '/ swap / s/^/#/' /etc/fstab
+      ignore_errors: yes
+
+    - name: Configure kernel parameters
+      shell: |
+        modprobe overlay
+        modprobe br_netfilter
+        cat > /etc/sysctl.d/kubernetes.conf <<EOF
+        net.bridge.bridge-nf-call-iptables = 1
+        net.bridge.bridge-nf-call-ip6tables = 1
+        net.ipv4.ip_forward = 1
+        kernel.unprivileged_userns_clone = 1
+        EOF
+        sysctl -p /etc/sysctl.d/kubernetes.conf
+      args:
+        creates: /etc/sysctl.d/kubernetes.conf
+
     - name: Install Containerd and K8s dependencies
       shell: |
         apt-get update
@@ -15,28 +35,118 @@
       args:
         creates: /usr/bin/kubeadm
 
+    - name: Configure containerd
+      shell: |
+        mkdir -p /etc/containerd
+        containerd config default > /etc/containerd/config.toml
+        sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
+        systemctl restart containerd
+        systemctl enable containerd
+
 - name: Setup K8s Master
   hosts: master
   become: yes
   tasks:
     - name: Init kubeadm
-      shell: "kubeadm init --apiserver-advertise-address={{ ansible_host }} --pod-network-cidr=10.244.0.0/16"
+      shell: "kubeadm init --apiserver-advertise-address={{ ansible_host }} --pod-network-cidr=10.244.0.0/16 2>&1 | tee /tmp/kubeadm-init.log"
       args:
         creates: /etc/kubernetes/admin.conf
+
+    - name: Create kubeconfig directory
+      shell: |
+        mkdir -p /root/.kube
+        cp /etc/kubernetes/admin.conf /root/.kube/config
+        chown root:root /root/.kube/config
 
     - name: Get join command
       shell: kubeadm token create --print-join-command
       register: kubeadm_join_cmd
 
-    - name: Save join info
-      set_fact:
-        join_cmd: "{{ kubeadm_join_cmd.stdout }}"
+    - name: Save join info to file
+      copy:
+        content: "{{ kubeadm_join_cmd.stdout }}"
+        dest: /tmp/join-command.sh
+        mode: '0755'
+
+    - name: Wait for control plane to be ready
+      shell: kubectl get nodes --no-headers 2>/dev/null | grep -c master || echo "0"
+      register: cp_ready
+      until: cp_ready.stdout | int >= 1
+      retries: 30
+      delay: 2
+
+    - name: Install Flannel CNI
+      shell: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+      ignore_errors: yes
+
+    - name: Wait for Flannel to be ready
+      shell: kubectl get pods -n kube-flannel --no-headers 2>/dev/null | grep -c Running || echo "0"
+      register: flannel_ready
+      until: flannel_ready.stdout | int >= 1
+      retries: 30
+      delay: 2
+
+    - name: Wait for all nodes to be Ready
+      shell: kubectl get nodes --no-headers 2>/dev/null | grep -c Ready || echo "0"
+      register: nodes_ready
+      until: nodes_ready.stdout | int >= 4
+      retries: 60
+      delay: 5
+
+    - name: Create hotel-res namespace
+      shell: kubectl create namespace hotel-res --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Deploy DeathStarBench manifests
+      shell: |
+        kubectl apply -Rf /vagrant/workloads/k8s/deathstarbench/kubernetes/ -n hotel-res
+      ignore_errors: yes
+
+    - name: Wait for hotel-res pods to be running
+      shell: |
+        RUNNING=$(kubectl get pods -n hotel-res --field-selector=status.phase=Running --no-headers 2>/dev/null | wc -l)
+        echo $RUNNING
+      register: pod_status
+      until: pod_status.stdout | int > 15
+      retries: 120
+      delay: 2
+
+    - name: Get cluster info
+      shell: |
+        echo "=== Kubernetes Full Cluster Info ===" > /tmp/k8s-full-cluster-info.txt
+        echo "Date: $(date)" >> /tmp/k8s-full-cluster-info.txt
+        echo "" >> /tmp/k8s-full-cluster-info.txt
+        echo "Nodes:" >> /tmp/k8s-full-cluster-info.txt
+        kubectl get nodes -o wide >> /tmp/k8s-full-cluster-info.txt
+        echo "" >> /tmp/k8s-full-cluster-info.txt
+        echo "Hotel-Res Pods:" >> /tmp/k8s-full-cluster-info.txt
+        kubectl get pods -n hotel-res -o wide >> /tmp/k8s-full-cluster-info.txt
 
 - name: Setup K8s Workers
   hosts: workers
   become: yes
   tasks:
+    - name: Wait for join command to be available
+      wait_for:
+        path: /tmp/join-command.sh
+        timeout: 300
+      delegate_to: "{{ groups['master'][0] }}"
+      run_once: true
+
+    - name: Fetch join command
+      shell: cat /tmp/join-command.sh
+      register: join_cmd_result
+      delegate_to: "{{ groups['master'][0] }}"
+      run_once: true
+
     - name: Join K8s cluster
-      shell: "{{ hostvars['master']['join_cmd'] }}"
+      shell: "{{ join_cmd_result.stdout }} --node-name {{ inventory_hostname }} 2>&1"
       ignore_errors: yes
+
+    - name: Wait for node to be ready
+      shell: kubectl get nodes {{ inventory_hostname }} --no-headers 2>/dev/null | grep -c Ready || echo "0"
+      register: node_ready
+      until: node_ready.stdout | int >= 1
+      retries: 60
+      delay: 2
+      delegate_to: "{{ groups['master'][0] }}"
 

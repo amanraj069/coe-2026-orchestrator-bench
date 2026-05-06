@@ -3,6 +3,39 @@
   hosts: cluster
   become: yes
   tasks:
+    - name: Install Docker prerequisites
+      apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: yes
+      loop:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - software-properties-common
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu jammy stable
+        state: present
+
+    - name: Install Docker Engine
+      apt:
+        name: docker-ce
+        state: present
+        update_cache: yes
+
+    - name: Enable Docker service
+      systemd:
+        name: docker
+        enabled: yes
+        state: started
+
     - name: Install HashiCorp repo and dependencies
       shell: |
         apt-get update && apt-get install -y wget gpg coreutils
@@ -24,7 +57,7 @@
         rm -f /etc/nomad.d/*.hcl
         cat <<EOF > /etc/nomad.d/nomad.hcl
         data_dir = "/opt/nomad/data"
-        bind_addr = "0.0.0.0"
+        bind_addr = "{{ ansible_host }}"
         advertise {
           http = "{{ ansible_host }}"
           rpc  = "{{ ansible_host }}"
@@ -48,7 +81,7 @@
         rm -f /etc/consul.d/*.hcl
         cat <<EOF > /etc/consul.d/consul.hcl
         data_dir = "/opt/consul"
-        bind_addr = "0.0.0.0"
+        bind_addr = "{{ ansible_host }}"
         client_addr = "0.0.0.0"
         advertise_addr = "{{ ansible_host }}"
         server = true
@@ -57,6 +90,8 @@
           enabled = true
         }
         EOF
+        sed -i 's/Type=notify/Type=exec/' /lib/systemd/system/consul.service
+        systemctl daemon-reload
         systemctl enable consul
         systemctl restart consul
 
@@ -71,7 +106,7 @@
         rm -f /etc/nomad.d/*.hcl
         cat <<EOF > /etc/nomad.d/nomad.hcl
         data_dir = "/opt/nomad/data"
-        bind_addr = "0.0.0.0"
+        bind_addr = "{{ ansible_host }}"
         advertise {
           http = "{{ ansible_host }}"
           rpc  = "{{ ansible_host }}"
@@ -83,8 +118,13 @@
         client {
           enabled = true
           servers = ["{{ hostvars['master']['ansible_host'] }}:4647"]
+          host_network "private" {
+            interface = "enp0s8"
+          }
         }
         EOF
+        sed -i 's|ExecStart=/usr/bin/nomad agent|ExecStart=/usr/bin/nomad agent -network-interface enp0s8|' /lib/systemd/system/nomad.service
+        systemctl daemon-reload
         systemctl enable nomad
         systemctl restart nomad
 
@@ -95,11 +135,12 @@
         rm -f /etc/consul.d/*.hcl
         cat <<EOF > /etc/consul.d/consul.hcl
         data_dir = "/opt/consul"
-        bind_addr = "0.0.0.0"
+        bind_addr = "{{ ansible_host }}"
         client_addr = "0.0.0.0"
         advertise_addr = "{{ ansible_host }}"
         retry_join = ["{{ hostvars['master']['ansible_host'] }}"]
         EOF
+        sed -i 's/Type=notify/Type=exec/' /lib/systemd/system/consul.service
+        systemctl daemon-reload
         systemctl enable consul
         systemctl restart consul
-
