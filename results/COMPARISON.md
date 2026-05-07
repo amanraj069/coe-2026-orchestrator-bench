@@ -8,14 +8,14 @@
 
 | Metric | K3s | Docker Swarm | Nomad | Winner |
 |--------|-----|--------------|-------|--------|
-| **Throughput (req/s)** | 4196.54 | 4259.64 | 6861.08 | **Nomad** ✓ |
-| **Average Latency (ms)** | 14.40 | 17.23 | 7.22 | **Nomad** ✓ |
-| **P99 Latency (approx)** | ~370.62ms | ~780.15ms | ~315.04ms | **Nomad** ✓ |
-| **Scaling Time to 50 Replicas (s)** | 13.573 | 29.115 | 5.787* | **Nomad** ✓ (degraded) |
-| **Idle Master Memory** | 1666 Mi | 285 MB | 358 MB | **Swarm** ✓ |
-| **Idle Worker Memory (avg)** | 769 Mi | 244 MB | 337 MB | **Swarm** ✓ |
-| **Master Memory Under Load** | 1670 Mi | 496 MB | 390 MB | **Swarm** ✓ |
-| **Peak Worker Memory (max observed)** | 1041 Mi | 512 MB | 1381 MB | **Swarm** ✓ |
+f| **Throughput (req/s)** | 4196.54 | 4259.64 | 6861.08 | **Nomad** |
+| **Average Latency (ms)** | 14.40 | 17.23 | 7.22 | **Nomad** |
+| **P99 Latency (approx)** | ~370.62ms | ~780.15ms | ~315.04ms | **Nomad** |
+| **Scaling Time to 50 Replicas (s)** | 13.573 | 29.115 | 5.787* | **Nomad** (degraded) |
+| **Idle Master Memory** | 1666 Mi | 285 MB | 358 MB | **Swarm** |
+| **Idle Worker Memory (avg)** | 769 Mi | 244 MB | 337 MB | **Swarm** |
+| **Master Memory Under Load** | 1670 Mi | 496 MB | 390 MB | **Swarm** |
+| **Peak Worker Memory (max observed)** | 1041 Mi | 512 MB | 1381 MB | **Swarm** |
 
 *Nomad Scenario 2 measured with clean cluster state (no lingering hotel-reservation workload from previous test).
 
@@ -83,7 +83,7 @@ Status: 30/50 replicas unplaced due to memory exhaustion
 - Did not fully converge due to resource constraints (lingering hotel-reservation workload + earlier test artifacts)
 - **Note:** With clean cluster state, Nomad likely achieves full convergence faster than K3s, but this run was resource-constrained
 
-**Winner: K3s (clean full convergence); Nomad (fastest handling, but degraded by resource pressure)**
+Winner: K3s (clean full convergence); Nomad (fastest handling, but degraded by resource pressure)
 
 ---
 
@@ -159,7 +159,7 @@ Results:
 - Both Kubernetes engines significantly underperform Nomad
 - Nomad's superior performance (~52% vs Full K8s) suggests more efficient service mesh and request routing
 
-**Winner: Nomad (50%+ higher throughput, 50% lower latency, superior tail latency)**
+Winner: Nomad (50%+ higher throughput, 50% lower latency, superior tail latency)
 
 ---
 
